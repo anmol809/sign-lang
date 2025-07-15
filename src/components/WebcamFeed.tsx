@@ -32,13 +32,15 @@ const animationFrameRef = useRef<number | null>(null);
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           
-          // Flip the image horizontally for MediaPipe processing
-          ctx.save();
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, -canvas.width, 0);
-          ctx.restore();
+          // Draw image normally for MediaPipe processing
+          ctx.drawImage(video, 0, 0);
           
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          console.log('Sending image data to detector:', {
+            width: imageData.width,
+            height: imageData.height,
+            dataLength: imageData.data.length
+          });
           processFrame(imageData);
 
           <button

@@ -18,6 +18,7 @@ export class SignLanguageDetector {
   private readonly maxSequenceLength = 30;
   private readonly landmarkCount = 42; // 21 landmarks * 2 (x, y)
   private lastDetectionTime = 0;
+  private isMediaPipeReady = false;
 
   async initialize(): Promise<void> {
     try {
@@ -29,24 +30,33 @@ export class SignLanguageDetector {
       console.log('Model loaded successfully:', this.model);
       
       console.log('Initializing MediaPipe Hands...');
+      
+      // Create MediaPipe Hands instance
       this.hands = new Hands({
         locateFile: (file) => {
+          console.log('Loading MediaPipe file:', file);
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
         }
       });
       
+      // Configure MediaPipe options
       this.hands.setOptions({
         maxNumHands: 1,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
+        modelComplexity: 0, // Use lighter model for better performance
+        minDetectionConfidence: 0.3, // Lower threshold
+        minTrackingConfidence: 0.3   // Lower threshold
       });
       
+      // Set up results callback
       this.hands.onResults((results: Results) => {
+        console.log('MediaPipe results received');
         this.onHandsResults(results);
       });
       
-      console.log('Sign language detector initialized successfully');
+      // Test MediaPipe initialization
+      console.log('MediaPipe Hands initialized successfully');
+      this.isMediaPipeReady = true;
+      
     } catch (error) {
       console.error('Failed to initialize sign language detector:', error);
       throw error;
@@ -54,15 +64,19 @@ export class SignLanguageDetector {
   }
 
   private onHandsResults(results: Results): void {
+    console.log('Processing MediaPipe results...');
+    
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const landmarks = results.multiHandLandmarks[0];
-      console.log('Hand landmarks detected:', landmarks.length, 'points');
+      console.log('✅ Hand landmarks detected:', landmarks.length, 'points');
       
       // Extract x, y coordinates from landmarks
       const landmarkArray: number[] = [];
       for (const landmark of landmarks) {
         landmarkArray.push(landmark.x, landmark.y);
       }
+      
+      console.log('Landmark array length:', landmarkArray.length);
       
       // Add to sequence
       this.landmarkSequence.push(landmarkArray);
@@ -72,20 +86,26 @@ export class SignLanguageDetector {
         this.landmarkSequence.shift();
       }
       
-      console.log('Landmark sequence length:', this.landmarkSequence.length);
+      console.log('Current sequence length:', this.landmarkSequence.length);
     } else {
-      console.log('No hand landmarks detected in frame');
+      console.log('❌ No hand landmarks detected in frame');
     }
   }
 
   async detectGesture(imageData: ImageData): Promise<DetectionResult | null> {
-    if (this.isProcessing || !this.model || !this.hands) {
+    if (this.isProcessing || !this.model || !this.hands || !this.isMediaPipeReady) {
+      console.log('Detection skipped - not ready:', {
+        isProcessing: this.isProcessing,
+        hasModel: !!this.model,
+        hasHands: !!this.hands,
+        isMediaPipeReady: this.isMediaPipeReady
+      });
       return null;
     }
 
-    // Throttle processing to avoid overwhelming MediaPipe
+    // Throttle processing
     const now = Date.now();
-    if (now - this.lastDetectionTime < 200) { // Process every 200ms
+    if (now - this.lastDetectionTime < 200) {
       return null;
     }
     this.lastDetectionTime = now;
@@ -93,6 +113,8 @@ export class SignLanguageDetector {
     this.isProcessing = true;
 
     try {
+      console.log('Processing frame for gesture detection...');
+      
       // Convert ImageData to canvas for MediaPipe processing
       const canvas = document.createElement('canvas');
       canvas.width = imageData.width;
@@ -100,13 +122,16 @@ export class SignLanguageDetector {
       const ctx = canvas.getContext('2d')!;
       ctx.putImageData(imageData, 0, 0);
       
-      console.log('Processing frame with MediaPipe...');
+      console.log('Sending frame to MediaPipe...', {
+        width: canvas.width,
+        height: canvas.height
+      });
       
       // Process with MediaPipe
       await this.hands.send({ image: canvas });
       
       // Check if we have enough frames for prediction
-      if (this.landmarkSequence.length < 10) { // Reduced from 30 for faster response
+      if (this.landmarkSequence.length < 5) { // Reduced requirement
         console.log('Not enough landmark frames for prediction:', this.landmarkSequence.length);
         this.isProcessing = false;
         return null;
@@ -117,6 +142,8 @@ export class SignLanguageDetector {
       // Prepare input tensor
       const inputSequence = this.prepareInputSequence();
       const inputTensor = tf.tensor3d([inputSequence], [1, this.maxSequenceLength, this.landmarkCount]);
+      
+      console.log('Input tensor shape:', inputTensor.shape);
       
       // Make prediction
       const prediction = this.model.predict(inputTensor) as tf.Tensor;
@@ -168,6 +195,8 @@ export class SignLanguageDetector {
     // Add the actual landmark data
     sequence.push(...recentFrames);
     
+    console.log('Prepared sequence shape:', sequence.length, 'x', sequence[0]?.length || 0);
+    
     return sequence;
   }
 
@@ -181,5 +210,6 @@ export class SignLanguageDetector {
       this.hands = null;
     }
     this.landmarkSequence = [];
+    this.isMediaPipeReady = false;
   }
 }
