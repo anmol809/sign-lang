@@ -57,6 +57,7 @@ const animationFrameRef = useRef<number | null>(null);
           >
             {isDetecting ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
           </button>
+        }
 
       <div className="mt-4 text-center">
         <p className="text-sm text-gray-600">
@@ -65,4 +66,6 @@ const animationFrameRef = useRef<number | null>(null);
           <span className="block text-xs text-gray-500 mt-1">Check browser console for detection logs</span>
         </p>
       </div>
+    }
     </div>
+  }
