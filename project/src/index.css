@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl;
+  }
+  
+  .btn-secondary {
+    @apply bg-white/90 hover:bg-white text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-200 border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg;
+  }
+  
+  .status-indicator {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .status-active {
+    @apply bg-accent-100 text-accent-800 border border-accent-200;
+  }
+  
+  .status-inactive {
+    @apply bg-gray-100 text-gray-600 border border-gray-200;
+  }
+  
+  .prediction-card {
+    @apply glass-effect rounded-2xl p-6 transition-all duration-300 hover:shadow-2xl;
+  }
+}

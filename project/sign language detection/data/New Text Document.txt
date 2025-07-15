@@ -1,0 +1,13 @@
+Use your webcam or phone to record 10 short videos (5–10 seconds each) for each gesture.
+Record 5 videos of “hello” and 5 of “thank you.”
+Save them in a folder structure like this:
+
+data/
+  hello/
+    hello_1.mp4
+    hello_2.mp4
+    ...
+  thankyou/
+    thankyou_1.mp4
+    thankyou_2.mp4
+    ...
