@@ -17,6 +17,7 @@ export class SignLanguageDetector {
   private landmarkSequence: number[][] = [];
   private readonly maxSequenceLength = 30;
   private readonly landmarkCount = 42; // 21 landmarks * 2 (x, y)
+  private lastDetectionTime = 0;
 
   async initialize(): Promise<void> {
     try {
@@ -24,26 +25,26 @@ export class SignLanguageDetector {
       await tf.ready();
       
       console.log('Loading trained model...');
-      // Load your trained model
-      this.model = await tf.loadLayersModel('/sign language detection/sign_lang_tfjs/model.json');
-      console.log('Model loaded successfully');
+      this.model = await tf.loadLayersModel('/sign_lang_tfjs/model.json');
+      console.log('Model loaded successfully:', this.model);
       
       console.log('Initializing MediaPipe Hands...');
-      // Initialize MediaPipe Hands
       this.hands = new Hands({
         locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
         }
       });
       
       this.hands.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
-        minDetectionConfidence: 0.7,
+        minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
       
-      this.hands.onResults(this.onHandsResults.bind(this));
+      this.hands.onResults((results: Results) => {
+        this.onHandsResults(results);
+      });
       
       console.log('Sign language detector initialized successfully');
     } catch (error) {
@@ -55,6 +56,7 @@ export class SignLanguageDetector {
   private onHandsResults(results: Results): void {
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const landmarks = results.multiHandLandmarks[0];
+      console.log('Hand landmarks detected:', landmarks.length, 'points');
       
       // Extract x, y coordinates from landmarks
       const landmarkArray: number[] = [];
@@ -69,6 +71,10 @@ export class SignLanguageDetector {
       if (this.landmarkSequence.length > this.maxSequenceLength) {
         this.landmarkSequence.shift();
       }
+      
+      console.log('Landmark sequence length:', this.landmarkSequence.length);
+    } else {
+      console.log('No hand landmarks detected in frame');
     }
   }
 
@@ -76,6 +82,13 @@ export class SignLanguageDetector {
     if (this.isProcessing || !this.model || !this.hands) {
       return null;
     }
+
+    // Throttle processing to avoid overwhelming MediaPipe
+    const now = Date.now();
+    if (now - this.lastDetectionTime < 200) { // Process every 200ms
+      return null;
+    }
+    this.lastDetectionTime = now;
 
     this.isProcessing = true;
 
@@ -87,14 +100,19 @@ export class SignLanguageDetector {
       const ctx = canvas.getContext('2d')!;
       ctx.putImageData(imageData, 0, 0);
       
+      console.log('Processing frame with MediaPipe...');
+      
       // Process with MediaPipe
       await this.hands.send({ image: canvas });
       
       // Check if we have enough frames for prediction
-      if (this.landmarkSequence.length < this.maxSequenceLength) {
+      if (this.landmarkSequence.length < 10) { // Reduced from 30 for faster response
+        console.log('Not enough landmark frames for prediction:', this.landmarkSequence.length);
         this.isProcessing = false;
         return null;
       }
+      
+      console.log('Making prediction with', this.landmarkSequence.length, 'frames');
       
       // Prepare input tensor
       const inputSequence = this.prepareInputSequence();
@@ -104,9 +122,13 @@ export class SignLanguageDetector {
       const prediction = this.model.predict(inputTensor) as tf.Tensor;
       const predictionData = await prediction.data();
       
+      console.log('Raw prediction:', Array.from(predictionData));
+      
       // Get the predicted class and confidence
       const maxIndex = predictionData.indexOf(Math.max(...Array.from(predictionData)));
       const confidence = predictionData[maxIndex];
+      
+      console.log('Predicted gesture:', this.labelMap[maxIndex], 'with confidence:', confidence);
       
       // Clean up tensors
       inputTensor.dispose();
@@ -115,7 +137,7 @@ export class SignLanguageDetector {
       this.isProcessing = false;
       
       // Return result only if confidence is above threshold
-      if (confidence > 0.6) {
+      if (confidence > 0.5) {
         return {
           gesture: this.labelMap[maxIndex],
           confidence: confidence
@@ -133,15 +155,18 @@ export class SignLanguageDetector {
   private prepareInputSequence(): number[][] {
     const sequence: number[][] = [];
     
+    // Use the most recent frames, pad if necessary
+    const recentFrames = this.landmarkSequence.slice(-this.maxSequenceLength);
+    
     // If we have fewer frames than needed, pad with zeros at the beginning
-    const paddingNeeded = this.maxSequenceLength - this.landmarkSequence.length;
+    const paddingNeeded = this.maxSequenceLength - recentFrames.length;
     
     for (let i = 0; i < paddingNeeded; i++) {
       sequence.push(new Array(this.landmarkCount).fill(0));
     }
     
     // Add the actual landmark data
-    sequence.push(...this.landmarkSequence);
+    sequence.push(...recentFrames);
     
     return sequence;
   }
