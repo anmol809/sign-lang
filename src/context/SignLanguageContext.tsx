@@ -2,8 +2,8 @@
    useEffect(() => {
      const initializeDetector = async () => {
        try {
--        // Simulate gradual loading
--        const progressInterval = setInterval(() => {
+        console.log('🚀 Initializing real detector with your trained model...');
+        setModelLoadingProgress(20);
 -          setModelLoadingProgress(prev => {
 -            if (prev >= 90) {
 -              clearInterval(progressInterval);
@@ -16,11 +16,10 @@
 +        console.log('Starting detector initialization...');
  
          const newDetector = new SignLanguageDetector();
-+        
-+        // Update progress during initialization
-+        setModelLoadingProgress(30);
+        setModelLoadingProgress(50);
+        
          await newDetector.initialize();
-+        setModelLoadingProgress(80);
+        setModelLoadingProgress(90);
          
          detectorRef.current = newDetector;
 +        setModelLoadingProgress(100);
@@ -29,11 +28,10 @@
 -        clearInterval(progressInterval);
          
 -        console.log('Detector initialized successfully');
-+        console.log('Real TensorFlow.js model loaded and detector initialized successfully');
+        console.log('✅ Your trained model is ready for real-time detection!');
        } catch (error) {
-         console.error('Failed to initialize detector:', error);
+        console.error('❌ Failed to initialize detector:', error);
          setModelLoadingProgress(0);
-+        // Show error state or fallback
        }
      };
 

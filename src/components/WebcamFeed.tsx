@@ -1,28 +1,23 @@
 const animationFrameRef = useRef<number | null>(null);
   const lastProcessTimeRef = useRef<number>(0);
   
-  const { isDetecting, startDetection, stopDetection, processFrame, currentPrediction, confidence, modelLoaded } = useSignLanguage();
+  const { isDetecting, startDetection, stopDetection, processFrame, currentPrediction, confidence } = useSignLanguage();
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
 
-  const PROCESS_INTERVAL = 200; // Process every 200ms for better responsiveness
+  const PROCESS_INTERVAL = 300; // Process every 300ms
 
   // Initialize camera only once when detection starts
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { ideal: 640, min: 480 },
-            height: { ideal: 480, min: 360 },
+            width: { ideal: 640 },
+            height: { ideal: 480 },
             facingMode: 'user'
           }
         });
 
   const handleToggleDetection = () => {
-    if (!modelLoaded) {
-      setError('Model is still loading. Please wait...');
-      return;
-    }
-    
     if (isDetecting) {
       stopDetection();
     } else {
@@ -31,29 +26,19 @@ const animationFrameRef = useRef<number | null>(null);
         if (ctx && video.readyState === 4) {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
-          
-          // Draw image normally for MediaPipe processing
           ctx.drawImage(video, 0, 0);
           
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          console.log('Sending image data to detector:', {
-            width: imageData.width,
-            height: imageData.height,
-            dataLength: imageData.data.length
-          });
           processFrame(imageData);
 
           <button
             onClick={handleToggleDetection}
             className={`p-3 rounded-xl transition-all duration-200 ${
-              !modelLoaded
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : isDetecting 
+              isDetecting 
                 ? 'bg-red-100 text-red-600 hover:bg-red-200' 
                 : 'bg-primary-100 text-primary-600 hover:bg-primary-200'
             }`}
-            disabled={isLoading || !modelLoaded}
-            title={!modelLoaded ? 'Model is loading...' : ''}
+            disabled={isLoading}
           >
             {isDetecting ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
           </button>
@@ -61,9 +46,8 @@ const animationFrameRef = useRef<number | null>(null);
 
       <div className="mt-4 text-center">
         <p className="text-sm text-gray-600">
-          Real-time AI detection: <span className="font-medium text-primary-600">Hello</span>, <span className="font-medium text-accent-600">Thank You</span>
-          {!modelLoaded && <span className="block text-xs text-yellow-600 mt-1">Loading neural network model...</span>}
-          <span className="block text-xs text-gray-500 mt-1">Check browser console for detection logs</span>
+          Using your trained LSTM model: <span className="font-medium text-primary-600">Hello</span>, <span className="font-medium text-accent-600">Thank You</span>
+          <span className="block text-xs text-gray-500 mt-1">Real MediaPipe + TensorFlow.js detection</span>
         </p>
       </div>
     }
